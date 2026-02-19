@@ -14,6 +14,32 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
 
+## Installation
+
+### Option 1: Download a release binary (recommended)
+
+1. Go to GitHub Releases and download the archive for your platform:
+   - `reclaim-cli-<target>.tar.gz`
+2. Extract it:
+
+```bash
+tar -xzf reclaim-cli-<target>.tar.gz
+```
+
+3. Move the `reclaim` binary into your `PATH`:
+
+```bash
+install -m 0755 reclaim-cli-<target>/reclaim /usr/local/bin/reclaim
+```
+
+### Option 2: Install from source
+
+```bash
+git clone https://github.com/cruzluna/reclaim-cli.git
+cd reclaim-cli
+cargo install --path .
+```
+
 ## Quick start
 
 1. Set API key:
