@@ -1,0 +1,139 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: reclaim-cli-x86_64-apple-darwin.tar.gz
+            use_zigbuild: false
+          - os: macos-14
+            target: aarch64-apple-darwin
+            asset: reclaim-cli-aarch64-apple-darwin.tar.gz
+            use_zigbuild: false
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            asset: reclaim-cli-x86_64-unknown-linux-gnu.tar.gz
+            use_zigbuild: false
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu.2.26
+            rust_target: x86_64-unknown-linux-gnu
+            asset: reclaim-cli-x86_64-unknown-linux-gnu-al2.tar.gz
+            use_zigbuild: true
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            asset: reclaim-cli-x86_64-unknown-linux-musl.tar.gz
+            use_zigbuild: true
+          - os: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            asset: reclaim-cli-aarch64-unknown-linux-gnu.tar.gz
+            use_zigbuild: true
+          - os: ubuntu-24.04
+            target: aarch64-unknown-linux-musl
+            asset: reclaim-cli-aarch64-unknown-linux-musl.tar.gz
+            use_zigbuild: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Resolve Rust target
+        shell: bash
+        run: |
+          TARGET_TO_ADD="${RUST_TARGET}"
+          if [ -z "${TARGET_TO_ADD}" ]; then
+            TARGET_TO_ADD="${TARGET}"
+          fi
+          rustup target add "${TARGET_TO_ADD}"
+        env:
+          TARGET: ${{ matrix.target }}
+          RUST_TARGET: ${{ matrix.rust_target }}
+
+      - name: Set up Zig
+        if: matrix.use_zigbuild
+        uses: mlugg/setup-zig@v1
+        with:
+          version: latest
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Install cargo-zigbuild
+        if: matrix.use_zigbuild
+        run: cargo install --locked cargo-zigbuild
+
+      - name: Build binary
+        shell: bash
+        run: |
+          if [ "${USE_ZIGBUILD}" = "true" ]; then
+            cargo zigbuild --locked --release --target "${TARGET}"
+          else
+            cargo build --locked --release --target "${TARGET}"
+          fi
+        env:
+          TARGET: ${{ matrix.target }}
+          USE_ZIGBUILD: ${{ matrix.use_zigbuild }}
+
+      - name: Package archive
+        shell: bash
+        run: |
+          BIN="target/${TARGET}/release/reclaim"
+          PKG_DIR="reclaim-cli-${TARGET}"
+          mkdir -p "dist/${PKG_DIR}"
+          cp "${BIN}" "dist/${PKG_DIR}/reclaim"
+          cp README.md "dist/${PKG_DIR}/README.md"
+          cp AGENTS.md "dist/${PKG_DIR}/AGENTS.md"
+          tar -C dist -czf "dist/${ASSET}" "${PKG_DIR}"
+        env:
+          TARGET: ${{ matrix.target }}
+          ASSET: ${{ matrix.asset }}
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release assets
+    runs-on: ubuntu-24.04
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all archives
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: reclaim-cli-*.tar.gz
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+          generate_release_notes: true
+          fail_on_unmatched_files: true
