@@ -51,7 +51,13 @@ impl fmt::Display for CliError {
             CliError::Transport { message, .. } => write!(f, "{message}"),
             CliError::Api {
                 status, message, ..
-            } => write!(f, "Reclaim API returned HTTP {status}: {message}"),
+            } => {
+                if message.contains('\n') {
+                    write!(f, "Reclaim API returned HTTP {status}.\n{message}")
+                } else {
+                    write!(f, "Reclaim API returned HTTP {status}: {message}")
+                }
+            }
             CliError::ResponseParse { message, .. } => write!(f, "{message}"),
             CliError::Output(message) => write!(f, "{message}"),
         }

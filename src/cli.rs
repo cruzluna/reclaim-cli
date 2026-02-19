@@ -1,11 +1,11 @@
-use clap::{builder::NonEmptyStringValueParser, Args, Parser, Subcommand, ValueEnum};
+use clap::{builder::NonEmptyStringValueParser, value_parser, Args, Parser, Subcommand, ValueEnum};
 
 const AFTER_HELP: &str = "\
 Examples:
   reclaim list
   reclaim list --all --format json
   reclaim get 123
-  reclaim create --title \"Plan Q1 roadmap\" --priority P2
+  reclaim create --title \"Plan Q1 roadmap\" --priority P2 --event-category WORK
   RECLAIM_API_KEY=... reclaim list
 
 Agent-friendly tip:
@@ -114,6 +114,23 @@ impl Priority {
     }
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]
+pub enum EventCategory {
+    #[value(name = "WORK")]
+    Work,
+    #[value(name = "PERSONAL")]
+    Personal,
+}
+
+impl EventCategory {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            EventCategory::Work => "WORK",
+            EventCategory::Personal => "PERSONAL",
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct CreateArgs {
     #[arg(
@@ -140,6 +157,35 @@ pub struct CreateArgs {
         help = "Optional total time in 15-minute chunks."
     )]
     pub time_chunks_required: Option<u32>,
+
+    #[arg(
+        long = "event-category",
+        value_enum,
+        default_value_t = EventCategory::Work,
+        help = "Task category. Defaults to WORK."
+    )]
+    pub event_category: EventCategory,
+
+    #[arg(
+        long = "min-chunk-size",
+        value_parser = value_parser!(u32).range(1..),
+        help = "Minimum chunk size in 15-minute increments."
+    )]
+    pub min_chunk_size: Option<u32>,
+
+    #[arg(
+        long = "max-chunk-size",
+        value_parser = value_parser!(u32).range(1..),
+        help = "Maximum chunk size in 15-minute increments."
+    )]
+    pub max_chunk_size: Option<u32>,
+
+    #[arg(
+        long = "always-private",
+        default_value_t = true,
+        help = "Whether calendar blocks should be private (true/false). Defaults to true."
+    )]
+    pub always_private: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]

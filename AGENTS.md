@@ -10,6 +10,8 @@ Guidance for humans and agents using this CLI.
    - `reclaim --help` should show practical examples and required setup.
 3. **Return fixable errors**
    - Errors should include a plain-language cause and a direct hint to fix it.
+   - For API failures, include **full context**: HTTP status, endpoint/method, raw response body (or JSON), and request payload when available.
+   - Do not collapse 5xx responses into generic outage text if the API returned additional details.
 4. **Support machine-readable output**
    - Use `--format json` when another tool/agent is consuming output.
 5. **Avoid hidden magic**
@@ -22,3 +24,4 @@ Guidance for humans and agents using this CLI.
 - Use JSON output:
   - `reclaim list --format json`
   - `reclaim get 123 --format json`
+- When reporting API bugs, keep the full CLI error output (request + raw response details).
