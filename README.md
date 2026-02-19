@@ -16,6 +16,17 @@ Foundational Rust CLI for interacting with Reclaim.ai.
 
 ## Installation
 
+### Option 0: Install script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/cruzluna/reclaim-cli/main/install.sh | bash
+```
+
+Useful overrides:
+- `RECLAIM_INSTALL_TAG` (default: `latest`)
+- `RECLAIM_INSTALL_DIR` (default: `$HOME/.local/bin`)
+- `RECLAIM_INSTALL_TARGET` (for manual target selection)
+
 ### Option 1: Download a release binary (recommended)
 
 1. Go to GitHub Releases and download the archive for your platform:
