@@ -63,12 +63,80 @@ async fn run() -> Result<(), CliError> {
                 }
             }
 
+            if (args.min_chunk_size.is_some() || args.max_chunk_size.is_some())
+                && args.time_chunks_required.is_none()
+            {
+                return Err(CliError::InvalidInput {
+                    message: "Invalid chunk options: --min-chunk-size/--max-chunk-size require --time-chunks-required."
+                        .to_string(),
+                    hint: Some(
+                        "Pass --time-chunks-required with chunk size options, e.g. --time-chunks-required 4 --min-chunk-size 2 --max-chunk-size 4"
+                            .to_string(),
+                    ),
+                });
+            }
+
+            let mut min_chunk_size = args.min_chunk_size;
+            let mut max_chunk_size = args.max_chunk_size;
+
+            if let Some(total_chunks) = args.time_chunks_required {
+                if min_chunk_size.is_none() {
+                    min_chunk_size = Some(1);
+                }
+                if max_chunk_size.is_none() {
+                    max_chunk_size = Some(total_chunks);
+                }
+
+                if let Some(min) = min_chunk_size {
+                    if min > total_chunks {
+                        return Err(CliError::InvalidInput {
+                            message: format!(
+                                "Invalid --min-chunk-size value: {min} exceeds --time-chunks-required ({total_chunks})."
+                            ),
+                            hint: Some(
+                                "Use a min chunk size less than or equal to --time-chunks-required."
+                                    .to_string(),
+                            ),
+                        });
+                    }
+                }
+
+                if let Some(max) = max_chunk_size {
+                    if max > total_chunks {
+                        return Err(CliError::InvalidInput {
+                            message: format!(
+                                "Invalid --max-chunk-size value: {max} exceeds --time-chunks-required ({total_chunks})."
+                            ),
+                            hint: Some(
+                                "Use a max chunk size less than or equal to --time-chunks-required."
+                                    .to_string(),
+                            ),
+                        });
+                    }
+                }
+            }
+
+            if let (Some(min), Some(max)) = (min_chunk_size, max_chunk_size) {
+                if min > max {
+                    return Err(CliError::InvalidInput {
+                        message: format!(
+                            "Invalid chunk bounds: --min-chunk-size ({min}) cannot exceed --max-chunk-size ({max})."
+                        ),
+                        hint: Some("Choose chunk sizes where min <= max.".to_string()),
+                    });
+                }
+            }
+
             let request = CreateTaskRequest {
                 title: args.title,
                 notes: args.notes,
                 priority: args.priority.map(|priority| priority.as_str().to_owned()),
                 due: args.due,
                 time_chunks_required: args.time_chunks_required,
+                event_category: Some(args.event_category.as_str().to_owned()),
+                min_chunk_size,
+                max_chunk_size,
+                always_private: Some(args.always_private),
             };
 
             let created = api.create_task(request).await?;
