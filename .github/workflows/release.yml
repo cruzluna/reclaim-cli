@@ -102,7 +102,11 @@ jobs:
       - name: Package archive
         shell: bash
         run: |
-          BIN="target/${TARGET}/release/reclaim"
+          BIN_TARGET="${RUST_TARGET}"
+          if [ -z "${BIN_TARGET}" ]; then
+            BIN_TARGET="${TARGET}"
+          fi
+          BIN="target/${BIN_TARGET}/release/reclaim"
           PKG_DIR="reclaim-cli-${TARGET}"
           mkdir -p "dist/${PKG_DIR}"
           cp "${BIN}" "dist/${PKG_DIR}/reclaim"
@@ -112,6 +116,7 @@ jobs:
           tar -C dist -czf "dist/${ASSET}" "${PKG_DIR}"
         env:
           TARGET: ${{ matrix.target }}
+          RUST_TARGET: ${{ matrix.rust_target }}
           ASSET: ${{ matrix.asset }}
 
       - name: Upload archive
