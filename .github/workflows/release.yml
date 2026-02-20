@@ -106,6 +106,7 @@ jobs:
           PKG_DIR="reclaim-cli-${TARGET}"
           mkdir -p "dist/${PKG_DIR}"
           cp "${BIN}" "dist/${PKG_DIR}/reclaim"
+          cargo run --locked --bin reclaim-man -- --output "dist/${PKG_DIR}/reclaim.1"
           cp README.md "dist/${PKG_DIR}/README.md"
           cp AGENTS.md "dist/${PKG_DIR}/AGENTS.md"
           tar -C dist -czf "dist/${ASSET}" "${PKG_DIR}"
