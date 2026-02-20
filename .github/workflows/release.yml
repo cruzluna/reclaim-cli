@@ -74,7 +74,9 @@ jobs:
         if: matrix.use_zigbuild
         uses: mlugg/setup-zig@v1
         with:
-          version: latest
+          # setup-zig@v1 expects pre-0.15 naming for archives (zig-linux-x86_64-*).
+          # Pinning avoids intermittent 404 failures when "latest" resolves to 0.15+.
+          version: 0.14.0
 
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
