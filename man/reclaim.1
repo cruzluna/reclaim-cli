@@ -1,0 +1,69 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH reclaim 1  "reclaim 0.1.0" 
+.SH NAME
+reclaim \- Simple CLI for Reclaim.ai tasks.
+.SH SYNOPSIS
+\fBreclaim\fR [\fB\-\-api\-key\fR] [\fB\-\-base\-url\fR] [\fB\-\-timeout\-secs\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Simple CLI for Reclaim.ai tasks.
+.PP
+Set your API key with RECLAIM_API_KEY or pass \-\-api\-key.
+Use \-\-format json when another tool/agent will parse the output.
+.SH OPTIONS
+.TP
+\fB\-\-api\-key\fR \fI<API_KEY>\fR
+Reclaim API key. Falls back to RECLAIM_API_KEY.
+.RS
+May also be specified with the \fBRECLAIM_API_KEY\fR environment variable. 
+.RE
+.TP
+\fB\-\-base\-url\fR \fI<BASE_URL>\fR [default: https://api.app.reclaim.ai/api]
+Reclaim API base URL.
+.RS
+May also be specified with the \fBRECLAIM_BASE_URL\fR environment variable. 
+.RE
+.TP
+\fB\-\-timeout\-secs\fR \fI<TIMEOUT_SECS>\fR [default: 15]
+HTTP timeout in seconds.
+.RS
+May also be specified with the \fBRECLAIM_TIMEOUT_SECS\fR environment variable. 
+.RE
+.TP
+\fB\-\-format\fR \fI<FORMAT>\fR [default: human]
+Output format.
+.br
+
+.br
+[\fIpossible values: \fRhuman, json]
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+reclaim\-list(1)
+List tasks (active by default).
+.TP
+reclaim\-get(1)
+Get one task by ID.
+.TP
+reclaim\-create(1)
+Create a new task.
+.TP
+reclaim\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH EXTRA
+Examples:
+  reclaim list
+  reclaim list \-\-all \-\-format json
+  reclaim get 123
+  reclaim create \-\-title "Plan Q1 roadmap" \-\-priority P2 \-\-event\-category WORK
+  RECLAIM_API_KEY=... reclaim list
+
+Agent\-friendly tip:
+  Use \-\-format json for stable machine\-readable output.
+.SH VERSION
+v0.1.0

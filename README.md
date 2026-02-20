@@ -73,6 +73,22 @@ Use `--format json` when output should be machine-readable:
 cargo run -- list --format json
 ```
 
+## Man page
+
+Generate `reclaim(1)` from the clap CLI definition:
+
+```bash
+cargo run --bin reclaim-man
+```
+
+By default this writes `man/reclaim.1`. To choose a different destination:
+
+```bash
+cargo run --bin reclaim-man -- --output /tmp/reclaim.1
+```
+
+Release archives also include `reclaim.1` next to the binary.
+
 ## API notes
 
 This foundation is based on observed usage from:
