@@ -387,14 +387,12 @@ fn pretty_json_or_raw(input: &str) -> String {
 
 fn truncate_debug_text(input: &str, max_chars: usize) -> String {
     let mut truncated = String::new();
-    let mut count = 0usize;
-    for ch in input.chars() {
+    for (count, ch) in input.chars().enumerate() {
         if count >= max_chars {
             truncated.push_str("... <truncated>");
             return truncated;
         }
         truncated.push(ch);
-        count += 1;
     }
     truncated
 }
