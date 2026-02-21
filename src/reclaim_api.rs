@@ -14,12 +14,51 @@ pub trait ReclaimApi {
     async fn list_tasks(&self, filter: TaskFilter) -> Result<Vec<Task>, CliError>;
     async fn get_task(&self, task_id: u64) -> Result<Task, CliError>;
     async fn create_task(&self, request: CreateTaskRequest) -> Result<Task, CliError>;
+    async fn list_events(&self, query: EventListQuery) -> Result<Vec<serde_json::Value>, CliError>;
+    async fn get_event(
+        &self,
+        calendar_id: u64,
+        event_id: &str,
+        source_details: Option<bool>,
+        thin: Option<bool>,
+    ) -> Result<serde_json::Value, CliError>;
+    async fn apply_schedule_actions(
+        &self,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CliError>;
+    async fn put_task(
+        &self,
+        task_id: u64,
+        request: serde_json::Value,
+        notification_key: Option<&str>,
+    ) -> Result<Task, CliError>;
+    async fn patch_task(
+        &self,
+        task_id: u64,
+        request: serde_json::Value,
+        notification_key: Option<&str>,
+    ) -> Result<Task, CliError>;
+    async fn delete_task(
+        &self,
+        task_id: u64,
+        notification_key: Option<&str>,
+    ) -> Result<serde_json::Value, CliError>;
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum TaskFilter {
     Active,
     All,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EventListQuery {
+    pub calendar_ids: Vec<u64>,
+    pub all_connected: Option<bool>,
+    pub start: Option<String>,
+    pub end: Option<String>,
+    pub source_details: Option<bool>,
+    pub thin: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -115,6 +154,23 @@ impl HttpReclaimApi {
             .header(header::CONTENT_TYPE, "application/json")
     }
 
+    fn request_with_notification_key(
+        &self,
+        method: Method,
+        path: &str,
+        notification_key: Option<&str>,
+    ) -> RequestBuilder {
+        let request = self.request(method, path);
+        if let Some(notification_key) = notification_key
+            .map(str::trim)
+            .filter(|notification_key| !notification_key.is_empty())
+        {
+            request.query(&[("notificationKey", notification_key)])
+        } else {
+            request
+        }
+    }
+
     async fn send_json<T: DeserializeOwned>(&self, request: RequestBuilder) -> Result<T, CliError> {
         let request_debug = capture_request_debug(&request);
         let response = request
@@ -177,6 +233,72 @@ impl HttpReclaimApi {
             ))
         }
     }
+
+    async fn send_json_value_or_null(
+        &self,
+        request: RequestBuilder,
+    ) -> Result<serde_json::Value, CliError> {
+        let request_debug = capture_request_debug(&request);
+        let response = request
+            .send()
+            .await
+            .map_err(|error| map_transport_error(error, request_debug.as_ref()))?;
+        let status = response.status();
+        let response_url = response.url().to_string();
+        let response_headers = response.headers().clone();
+        let response_body = response.text().await.map_err(|error| CliError::Transport {
+            message: format!(
+                "Could not read Reclaim API response body: {error}\n{}",
+                format_request_context(request_debug.as_ref())
+            ),
+            hint: Some(
+                "Retry the command. If this repeats, capture the output and file a bug."
+                    .to_string(),
+            ),
+        })?;
+
+        if status.is_success() {
+            let body = response_body.trim();
+            if body.is_empty() {
+                return Ok(serde_json::Value::Null);
+            }
+
+            serde_json::from_str::<serde_json::Value>(body).map_err(|error| {
+                let mut lines = vec![format!(
+                    "Reclaim API returned a non-JSON success response: {error}"
+                )];
+
+                if let Some(request_debug) = request_debug.as_ref() {
+                    lines.push(format!(
+                        "Request: {} {}",
+                        request_debug.method, request_debug.url
+                    ));
+                } else {
+                    lines.push(format!("Response URL: {response_url}"));
+                }
+
+                lines.push(format!(
+                    "Raw response body: {}",
+                    truncate_debug_text(&pretty_json_or_raw(body), DEBUG_BODY_LIMIT)
+                ));
+
+                CliError::ResponseParse {
+                    message: lines.join("\n"),
+                    hint: Some(
+                        "Keep the raw response body above when reporting this issue.".to_string(),
+                    ),
+                }
+            })
+        } else {
+            Err(parse_api_error(
+                status.as_u16(),
+                &response_body,
+                &response_url,
+                &response_headers,
+                request_debug.as_ref(),
+            ))
+        }
+    }
 }
 
 impl ReclaimApi for HttpReclaimApi {
@@ -198,6 +320,133 @@ impl ReclaimApi for HttpReclaimApi {
     async fn create_task(&self, request: CreateTaskRequest) -> Result<Task, CliError> {
         self.send_json(self.request(Method::POST, "tasks").json(&request))
             .await
+    }
+
+    async fn list_events(&self, query: EventListQuery) -> Result<Vec<serde_json::Value>, CliError> {
+        let mut request = self.request(Method::GET, "events");
+        let mut query_pairs: Vec<(String, String)> = Vec::new();
+
+        for calendar_id in query.calendar_ids {
+            query_pairs.push(("calendarIds".to_string(), calendar_id.to_string()));
+        }
+
+        if let Some(all_connected) = query.all_connected {
+            query_pairs.push(("allConnected".to_string(), all_connected.to_string()));
+        }
+
+        if let Some(start) = query
+            .start
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            query_pairs.push(("start".to_string(), start.to_string()));
+        }
+
+        if let Some(end) = query
+            .end
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            query_pairs.push(("end".to_string(), end.to_string()));
+        }
+
+        if let Some(source_details) = query.source_details {
+            query_pairs.push(("sourceDetails".to_string(), source_details.to_string()));
+        }
+
+        if let Some(thin) = query.thin {
+            query_pairs.push(("thin".to_string(), thin.to_string()));
+        }
+
+        if !query_pairs.is_empty() {
+            request = request.query(&query_pairs);
+        }
+
+        self.send_json(request).await
+    }
+
+    async fn get_event(
+        &self,
+        calendar_id: u64,
+        event_id: &str,
+        source_details: Option<bool>,
+        thin: Option<bool>,
+    ) -> Result<serde_json::Value, CliError> {
+        let mut request = self.request(Method::GET, &format!("events/{calendar_id}/{event_id}"));
+        let mut query_pairs: Vec<(String, String)> = Vec::new();
+
+        if let Some(source_details) = source_details {
+            query_pairs.push(("sourceDetails".to_string(), source_details.to_string()));
+        }
+        if let Some(thin) = thin {
+            query_pairs.push(("thin".to_string(), thin.to_string()));
+        }
+
+        if !query_pairs.is_empty() {
+            request = request.query(&query_pairs);
+        }
+
+        self.send_json(request).await
+    }
+
+    async fn apply_schedule_actions(
+        &self,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CliError> {
+        self.send_json(
+            self.request(Method::POST, "schedule-actions/apply-actions")
+                .json(&request),
+        )
+        .await
+    }
+
+    async fn put_task(
+        &self,
+        task_id: u64,
+        request: serde_json::Value,
+        notification_key: Option<&str>,
+    ) -> Result<Task, CliError> {
+        self.send_json(
+            self.request_with_notification_key(
+                Method::PUT,
+                &format!("tasks/{task_id}"),
+                notification_key,
+            )
+            .json(&request),
+        )
+        .await
+    }
+
+    async fn patch_task(
+        &self,
+        task_id: u64,
+        request: serde_json::Value,
+        notification_key: Option<&str>,
+    ) -> Result<Task, CliError> {
+        self.send_json(
+            self.request_with_notification_key(
+                Method::PATCH,
+                &format!("tasks/{task_id}"),
+                notification_key,
+            )
+            .json(&request),
+        )
+        .await
+    }
+
+    async fn delete_task(
+        &self,
+        task_id: u64,
+        notification_key: Option<&str>,
+    ) -> Result<serde_json::Value, CliError> {
+        self.send_json_value_or_null(self.request_with_notification_key(
+            Method::DELETE,
+            &format!("tasks/{task_id}"),
+            notification_key,
+        ))
+        .await
     }
 }
 
@@ -510,6 +759,46 @@ mod tests {
         assert_eq!(
             extract_api_message(&payload),
             Some("priority: must be one of P1, P2, P3, P4".to_string())
+        );
+    }
+
+    #[test]
+    fn request_with_notification_key_adds_query_param() {
+        let api = HttpReclaimApi::new(
+            Some("key".to_string()),
+            "https://api.app.reclaim.ai/api".to_string(),
+            15,
+        )
+        .expect("api should initialize");
+
+        let request = api
+            .request_with_notification_key(Method::PATCH, "tasks/123", Some("notif-123"))
+            .build()
+            .expect("request should build");
+
+        assert_eq!(
+            request.url().as_str(),
+            "https://api.app.reclaim.ai/api/tasks/123?notificationKey=notif-123"
+        );
+    }
+
+    #[test]
+    fn request_with_notification_key_ignores_blank_value() {
+        let api = HttpReclaimApi::new(
+            Some("key".to_string()),
+            "https://api.app.reclaim.ai/api".to_string(),
+            15,
+        )
+        .expect("api should initialize");
+
+        let request = api
+            .request_with_notification_key(Method::DELETE, "tasks/123", Some("   "))
+            .build()
+            .expect("request should build");
+
+        assert_eq!(
+            request.url().as_str(),
+            "https://api.app.reclaim.ai/api/tasks/123"
         );
     }
 }

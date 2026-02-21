@@ -13,6 +13,12 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `reclaim list`
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
+  - `reclaim put <TASK_ID> --json '{...}'` or `--set key=value`
+  - `reclaim patch <TASK_ID> --json '{...}'` and/or `--set key=value`
+  - `reclaim delete <TASK_ID>`
+  - `reclaim events list`
+  - `reclaim events get <CALENDAR_ID> <EVENT_ID>`
+  - `reclaim events create|update|delete ...`
 
 ## Installation
 
@@ -65,12 +71,52 @@ export RECLAIM_API_KEY=your_api_key_here
 cargo run -- list
 cargo run -- get 123
 cargo run -- create --title "Plan sprint"
+cargo run -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
+cargo run -- put 123 --set priority=P2
+cargo run -- delete 123
+cargo run -- events list --start 2026-02-01 --end 2026-02-28
+cargo run -- events create --calendar-id 829105 --title "Team sync" --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
 ```
 
 Use `--format json` when output should be machine-readable:
 
 ```bash
 cargo run -- list --format json
+```
+
+Use `--json` and `--set key=value` on `put`/`patch` for agent-friendly updates:
+
+```bash
+# Partial update (PATCH)
+cargo run -- patch 123 \
+  --set priority=P4 \
+  --set snoozeUntil=2026-02-25T17:00:00Z \
+  --format json
+
+# Full replace (PUT) using a JSON object
+cargo run -- put 123 --json '{"title":"Plan sprint","priority":"P2"}' --format json
+
+# Create an event
+cargo run -- events create \
+  --calendar-id 829105 \
+  --title "UCA Standup" \
+  --start 2026-02-19T18:30:00Z \
+  --end 2026-02-19T19:00:00Z \
+  --priority P1 \
+  --format json
+
+# Update an event using field overrides
+cargo run -- events update \
+  --calendar-id 829105 \
+  --event-id r2d260ojiopn \
+  --set priority=P4 \
+  --set location="Room A" \
+  --format json
+
+# Advanced event action payload
+cargo run -- events apply \
+  --json '{"actionsTaken":[{"type":"CancelEventAction","policyId":"00000000-0000-0000-0000-000000000000","eventKey":"829105/r2d260ojiopn"}]}' \
+  --format json
 ```
 
 ## Man page
@@ -96,4 +142,6 @@ https://github.com/johnjhughes/reclaim-mcp-server
 
 In particular:
 - Base URL: `https://api.app.reclaim.ai/api`
-- Task endpoints: `/tasks`, `/tasks/{id}`
+- Task endpoints: `/tasks`, `/tasks/{id}` (`GET`, `PUT`, `PATCH`, `DELETE`)
+- Event endpoints: `/events`, `/events/{calendarId}/{eventId}`
+- Event mutations: `/schedule-actions/apply-actions` (`AddEventAction`, `UpdateEventAction`, `CancelEventAction`)
