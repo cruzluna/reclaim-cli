@@ -14,6 +14,18 @@ pub trait ReclaimApi {
     async fn list_tasks(&self, filter: TaskFilter) -> Result<Vec<Task>, CliError>;
     async fn get_task(&self, task_id: u64) -> Result<Task, CliError>;
     async fn create_task(&self, request: CreateTaskRequest) -> Result<Task, CliError>;
+    async fn list_events(&self, query: EventListQuery) -> Result<Vec<serde_json::Value>, CliError>;
+    async fn get_event(
+        &self,
+        calendar_id: u64,
+        event_id: &str,
+        source_details: Option<bool>,
+        thin: Option<bool>,
+    ) -> Result<serde_json::Value, CliError>;
+    async fn apply_schedule_actions(
+        &self,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CliError>;
     async fn put_task(
         &self,
         task_id: u64,
@@ -37,6 +49,16 @@ pub trait ReclaimApi {
 pub enum TaskFilter {
     Active,
     All,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EventListQuery {
+    pub calendar_ids: Vec<u64>,
+    pub all_connected: Option<bool>,
+    pub start: Option<String>,
+    pub end: Option<String>,
+    pub source_details: Option<bool>,
+    pub thin: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -298,6 +320,86 @@ impl ReclaimApi for HttpReclaimApi {
     async fn create_task(&self, request: CreateTaskRequest) -> Result<Task, CliError> {
         self.send_json(self.request(Method::POST, "tasks").json(&request))
             .await
+    }
+
+    async fn list_events(&self, query: EventListQuery) -> Result<Vec<serde_json::Value>, CliError> {
+        let mut request = self.request(Method::GET, "events");
+        let mut query_pairs: Vec<(String, String)> = Vec::new();
+
+        for calendar_id in query.calendar_ids {
+            query_pairs.push(("calendarIds".to_string(), calendar_id.to_string()));
+        }
+
+        if let Some(all_connected) = query.all_connected {
+            query_pairs.push(("allConnected".to_string(), all_connected.to_string()));
+        }
+
+        if let Some(start) = query
+            .start
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            query_pairs.push(("start".to_string(), start.to_string()));
+        }
+
+        if let Some(end) = query
+            .end
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            query_pairs.push(("end".to_string(), end.to_string()));
+        }
+
+        if let Some(source_details) = query.source_details {
+            query_pairs.push(("sourceDetails".to_string(), source_details.to_string()));
+        }
+
+        if let Some(thin) = query.thin {
+            query_pairs.push(("thin".to_string(), thin.to_string()));
+        }
+
+        if !query_pairs.is_empty() {
+            request = request.query(&query_pairs);
+        }
+
+        self.send_json(request).await
+    }
+
+    async fn get_event(
+        &self,
+        calendar_id: u64,
+        event_id: &str,
+        source_details: Option<bool>,
+        thin: Option<bool>,
+    ) -> Result<serde_json::Value, CliError> {
+        let mut request = self.request(Method::GET, &format!("events/{calendar_id}/{event_id}"));
+        let mut query_pairs: Vec<(String, String)> = Vec::new();
+
+        if let Some(source_details) = source_details {
+            query_pairs.push(("sourceDetails".to_string(), source_details.to_string()));
+        }
+        if let Some(thin) = thin {
+            query_pairs.push(("thin".to_string(), thin.to_string()));
+        }
+
+        if !query_pairs.is_empty() {
+            request = request.query(&query_pairs);
+        }
+
+        self.send_json(request).await
+    }
+
+    async fn apply_schedule_actions(
+        &self,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CliError> {
+        self.send_json(
+            self.request(Method::POST, "schedule-actions/apply-actions")
+                .json(&request),
+        )
+        .await
     }
 
     async fn put_task(
