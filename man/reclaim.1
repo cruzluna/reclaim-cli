@@ -50,6 +50,15 @@ List tasks (active by default).
 reclaim\-get(1)
 Get one task by ID.
 .TP
+reclaim\-put(1)
+Replace a task via PUT.
+.TP
+reclaim\-patch(1)
+Partially update a task via PATCH.
+.TP
+reclaim\-delete(1)
+Delete one task by ID.
+.TP
 reclaim\-create(1)
 Create a new task.
 .TP
@@ -60,10 +69,13 @@ Examples:
   reclaim list
   reclaim list \-\-all \-\-format json
   reclaim get 123
+  reclaim patch 123 \-\-set priority=P4 \-\-set snoozeUntil=2026\-02\-25T17:00:00Z
+  reclaim put 123 \-\-set priority=P2 \-\-set due=2026\-02\-28T17:00:00Z
+  reclaim delete 123
   reclaim create \-\-title "Plan Q1 roadmap" \-\-priority P2 \-\-event\-category WORK
   RECLAIM_API_KEY=... reclaim list
 
 Agent\-friendly tip:
-  Use \-\-format json for stable machine\-readable output.
+  Use \-\-format json for stable machine\-readable output and \-\-json/\-\-set for updates.
 .SH VERSION
 v0.1.0

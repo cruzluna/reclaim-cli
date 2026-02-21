@@ -1,15 +1,21 @@
-use clap::{builder::NonEmptyStringValueParser, value_parser, Args, Parser, Subcommand, ValueEnum};
+use clap::{
+    builder::NonEmptyStringValueParser, value_parser, ArgAction, Args, Parser, Subcommand,
+    ValueEnum,
+};
 
 const AFTER_HELP: &str = "\
 Examples:
   reclaim list
   reclaim list --all --format json
   reclaim get 123
+  reclaim patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
+  reclaim put 123 --set priority=P2 --set due=2026-02-28T17:00:00Z
+  reclaim delete 123
   reclaim create --title \"Plan Q1 roadmap\" --priority P2 --event-category WORK
   RECLAIM_API_KEY=... reclaim list
 
 Agent-friendly tip:
-  Use --format json for stable machine-readable output.
+  Use --format json for stable machine-readable output and --json/--set for updates.
 ";
 
 #[derive(Debug, Parser)]
@@ -71,6 +77,18 @@ pub enum Command {
     List(ListArgs),
     #[command(about = "Get one task by ID.", alias = "show")]
     Get(GetArgs),
+    #[command(
+        about = "Replace a task via PUT.",
+        long_about = "Replace a task via PUT.\n\nPass --json with a full task object, or pass --set key=value fields.\nIf only --set is passed, reclaim fetches the current task first and then applies your updates."
+    )]
+    Put(PutArgs),
+    #[command(
+        about = "Partially update a task via PATCH.",
+        long_about = "Partially update a task via PATCH.\n\nPass --json with a partial JSON object and/or repeated --set key=value entries."
+    )]
+    Patch(PatchArgs),
+    #[command(about = "Delete one task by ID.", aliases = ["del", "rm", "remove"])]
+    Delete(DeleteArgs),
     #[command(about = "Create a new task.")]
     Create(CreateArgs),
 }
@@ -89,6 +107,72 @@ pub struct ListArgs {
 pub struct GetArgs {
     #[arg(help = "Task ID.")]
     pub task_id: u64,
+}
+
+#[derive(Debug, Args)]
+pub struct PutArgs {
+    #[arg(help = "Task ID.")]
+    pub task_id: u64,
+
+    #[arg(
+        long,
+        value_name = "JSON_OBJECT",
+        help = "Full task object JSON to send in PUT. Must be a JSON object."
+    )]
+    pub json: Option<String>,
+
+    #[arg(
+        long = "set",
+        value_name = "KEY=VALUE",
+        action = ArgAction::Append,
+        help = "Field override for PUT. Repeatable. Value supports JSON literals (true, null, numbers, arrays, objects)."
+    )]
+    pub set: Vec<String>,
+
+    #[arg(
+        long = "notification-key",
+        help = "Optional notification key forwarded to the Reclaim API."
+    )]
+    pub notification_key: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct PatchArgs {
+    #[arg(help = "Task ID.")]
+    pub task_id: u64,
+
+    #[arg(
+        long,
+        value_name = "JSON_OBJECT",
+        help = "Partial task JSON object to send in PATCH. Must be a JSON object."
+    )]
+    pub json: Option<String>,
+
+    #[arg(
+        long = "set",
+        value_name = "KEY=VALUE",
+        action = ArgAction::Append,
+        help = "Field update for PATCH. Repeatable. Value supports JSON literals (true, null, numbers, arrays, objects)."
+    )]
+    pub set: Vec<String>,
+
+    #[arg(
+        long = "notification-key",
+        help = "Optional notification key forwarded to the Reclaim API."
+    )]
+    pub notification_key: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct DeleteArgs {
+    #[arg(help = "Task ID.")]
+    pub task_id: u64,
+
+    #[arg(
+        long = "notification-key",
+        help = "Optional notification key forwarded to the Reclaim API."
+    )]
+    pub notification_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]

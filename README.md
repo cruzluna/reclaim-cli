@@ -13,6 +13,9 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `reclaim list`
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
+  - `reclaim put <TASK_ID> --json '{...}'` or `--set key=value`
+  - `reclaim patch <TASK_ID> --json '{...}'` and/or `--set key=value`
+  - `reclaim delete <TASK_ID>`
 
 ## Installation
 
@@ -65,12 +68,28 @@ export RECLAIM_API_KEY=your_api_key_here
 cargo run -- list
 cargo run -- get 123
 cargo run -- create --title "Plan sprint"
+cargo run -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
+cargo run -- put 123 --set priority=P2
+cargo run -- delete 123
 ```
 
 Use `--format json` when output should be machine-readable:
 
 ```bash
 cargo run -- list --format json
+```
+
+Use `--json` and `--set key=value` on `put`/`patch` for agent-friendly updates:
+
+```bash
+# Partial update (PATCH)
+cargo run -- patch 123 \
+  --set priority=P4 \
+  --set snoozeUntil=2026-02-25T17:00:00Z \
+  --format json
+
+# Full replace (PUT) using a JSON object
+cargo run -- put 123 --json '{"title":"Plan sprint","priority":"P2"}' --format json
 ```
 
 ## Man page
@@ -96,4 +115,4 @@ https://github.com/johnjhughes/reclaim-mcp-server
 
 In particular:
 - Base URL: `https://api.app.reclaim.ai/api`
-- Task endpoints: `/tasks`, `/tasks/{id}`
+- Task endpoints: `/tasks`, `/tasks/{id}` (`GET`, `PUT`, `PATCH`, `DELETE`)
