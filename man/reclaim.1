@@ -2,11 +2,11 @@
 .el .ds Aq '
 .TH reclaim 1  "reclaim 0.1.0" 
 .SH NAME
-reclaim \- Simple CLI for Reclaim.ai tasks.
+reclaim \- Simple CLI for Reclaim.ai tasks and events.
 .SH SYNOPSIS
 \fBreclaim\fR [\fB\-\-api\-key\fR] [\fB\-\-base\-url\fR] [\fB\-\-timeout\-secs\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
 .SH DESCRIPTION
-Simple CLI for Reclaim.ai tasks.
+Simple CLI for Reclaim.ai tasks and events.
 .PP
 Set your API key with RECLAIM_API_KEY or pass \-\-api\-key.
 Use \-\-format json when another tool/agent will parse the output.
@@ -50,6 +50,18 @@ List tasks (active by default).
 reclaim\-get(1)
 Get one task by ID.
 .TP
+reclaim\-put(1)
+Replace a task via PUT.
+.TP
+reclaim\-patch(1)
+Partially update a task via PATCH.
+.TP
+reclaim\-delete(1)
+Delete one task by ID.
+.TP
+reclaim\-events(1)
+Manage calendar events.
+.TP
 reclaim\-create(1)
 Create a new task.
 .TP
@@ -60,10 +72,18 @@ Examples:
   reclaim list
   reclaim list \-\-all \-\-format json
   reclaim get 123
+  reclaim patch 123 \-\-set priority=P4 \-\-set snoozeUntil=2026\-02\-25T17:00:00Z
+  reclaim put 123 \-\-set priority=P2 \-\-set due=2026\-02\-28T17:00:00Z
+  reclaim delete 123
   reclaim create \-\-title "Plan Q1 roadmap" \-\-priority P2 \-\-event\-category WORK
+  reclaim events list \-\-start 2026\-02\-01 \-\-end 2026\-02\-28 \-\-format json
+  reclaim events get 829105 r2d260ojiopn \-\-format json
+  reclaim events create \-\-calendar\-id 829105 \-\-title "Team sync" \-\-start 2026\-02\-21T18:30:00Z \-\-end 2026\-02\-21T19:00:00Z
+  reclaim events update \-\-calendar\-id 829105 \-\-event\-id r2d260ojiopn \-\-set priority=P4
+  reclaim events delete \-\-calendar\-id 829105 \-\-event\-id r2d260ojiopn
   RECLAIM_API_KEY=... reclaim list
 
 Agent\-friendly tip:
-  Use \-\-format json for stable machine\-readable output.
+  Use \-\-format json for stable machine\-readable output and \-\-json/\-\-set for updates.
 .SH VERSION
 v0.1.0
