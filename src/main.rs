@@ -1,4 +1,5 @@
 mod cli;
+mod dashboard;
 mod error;
 mod reclaim_api;
 
@@ -48,6 +49,18 @@ async fn run() -> Result<(), CliError> {
                 OutputFormat::Json => print_json(&tasks)?,
                 OutputFormat::Human => print_task_list_human(args.all, &tasks),
             }
+        }
+        Command::Dashboard(args) => {
+            if matches!(format, OutputFormat::Json) {
+                return Err(CliError::InvalidInput {
+                    message:
+                        "The dashboard is an interactive TUI and only supports --format human."
+                            .to_string(),
+                    hint: Some("Run: reclaim dashboard".to_string()),
+                });
+            }
+
+            dashboard::run_dashboard(&api, args.all).await?;
         }
         Command::Get(args) => {
             let task = api.get_task(args.task_id).await?;

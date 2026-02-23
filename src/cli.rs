@@ -6,6 +6,7 @@ use clap::{
 const AFTER_HELP: &str = "\
 Examples:
   reclaim list
+  reclaim dashboard
   reclaim list --all --format json
   reclaim get 123
   reclaim patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
@@ -82,6 +83,11 @@ pub struct Cli {
 pub enum Command {
     #[command(about = "List tasks (active by default).", alias = "ls")]
     List(ListArgs),
+    #[command(
+        about = "Open an interactive task dashboard (TUI).",
+        aliases = ["dash", "tui"]
+    )]
+    Dashboard(DashboardArgs),
     #[command(about = "Get one task by ID.", alias = "show")]
     Get(GetArgs),
     #[command(
@@ -107,6 +113,16 @@ pub enum Command {
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
+    #[arg(
+        long,
+        short = 'a',
+        help = "Include all tasks, including archived/cancelled/deleted."
+    )]
+    pub all: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct DashboardArgs {
     #[arg(
         long,
         short = 'a',
