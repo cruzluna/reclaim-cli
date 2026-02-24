@@ -11,6 +11,7 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `src/error.rs` for actionable errors with fix hints
 - Foundational commands:
   - `reclaim list`
+  - `reclaim dashboard` (interactive TUI)
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
   - `reclaim put <TASK_ID> --json '{...}'` or `--set key=value`
@@ -69,6 +70,7 @@ export RECLAIM_API_KEY=your_api_key_here
 
 ```bash
 cargo run -- list
+cargo run -- dashboard
 cargo run -- get 123
 cargo run -- create --title "Plan sprint"
 cargo run -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
@@ -77,6 +79,21 @@ cargo run -- delete 123
 cargo run -- events list --start 2026-02-01 --end 2026-02-28
 cargo run -- events create --calendar-id 829105 --title "Team sync" --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
 ```
+
+## Interactive dashboard
+
+Open a terminal dashboard for your tasks:
+
+```bash
+cargo run -- dashboard
+```
+
+Keyboard shortcuts (Vim-friendly):
+- `j` / `k` (or arrow keys): move selection
+- `g` / `G`: jump to first/last task
+- `?`: toggle help panel
+- `r`: refresh tasks from API
+- Quit with `:q`, `Esc`, or `Ctrl+C`
 
 Use `--format json` when output should be machine-readable:
 
