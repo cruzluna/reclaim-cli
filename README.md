@@ -11,6 +11,7 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `src/error.rs` for actionable errors with fix hints
 - Foundational commands:
   - `reclaim list`
+  - `reclaim list --filter open|completed`
   - `reclaim dashboard` (interactive TUI)
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
@@ -70,6 +71,8 @@ export RECLAIM_API_KEY=your_api_key_here
 
 ```bash
 cargo run -- list
+cargo run -- list --filter open
+cargo run -- list --filter completed
 cargo run -- dashboard
 cargo run -- get 123
 cargo run -- create --title "Plan sprint"

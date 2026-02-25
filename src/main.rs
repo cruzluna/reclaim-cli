@@ -6,7 +6,7 @@ mod reclaim_api;
 use clap::Parser;
 use cli::{
     Cli, Command, EventsApplyArgs, EventsCommand, EventsCreateArgs, EventsDeleteArgs,
-    EventsUpdateArgs, OutputFormat, PatchArgs, PutArgs,
+    EventsUpdateArgs, OutputFormat, PatchArgs, PutArgs, TaskCompletionFilter,
 };
 use error::CliError;
 use reclaim_api::{
@@ -43,11 +43,12 @@ async fn run() -> Result<(), CliError> {
             } else {
                 TaskFilter::Active
             };
-            let tasks = api.list_tasks(filter).await?;
+            let mut tasks = api.list_tasks(filter).await?;
+            apply_task_completion_filter(&mut tasks, args.filter);
 
             match format {
                 OutputFormat::Json => print_json(&tasks)?,
-                OutputFormat::Human => print_task_list_human(args.all, &tasks),
+                OutputFormat::Human => print_task_list_human(args.all, args.filter, &tasks),
             }
         }
         Command::Dashboard(args) => {
@@ -766,12 +767,69 @@ fn print_json<T: serde::Serialize>(value: &T) -> Result<(), CliError> {
     Ok(())
 }
 
-fn print_task_list_human(includes_all: bool, tasks: &[Task]) {
+fn apply_task_completion_filter(tasks: &mut Vec<Task>, filter: Option<TaskCompletionFilter>) {
+    let Some(filter) = filter else {
+        return;
+    };
+
+    tasks.retain(|task| match filter {
+        TaskCompletionFilter::Open => !task_is_completed(task),
+        TaskCompletionFilter::Completed => task_is_completed(task),
+    });
+}
+
+fn task_is_completed(task: &Task) -> bool {
+    if status_indicates_completed(task.status.as_deref()) {
+        return true;
+    }
+
+    if task
+        .extra
+        .get("completionStatus")
+        .and_then(Value::as_str)
+        .is_some_and(|status| status_indicates_completed(Some(status)))
+    {
+        return true;
+    }
+
+    task.extra
+        .get("completed")
+        .and_then(Value::as_bool)
+        .or_else(|| task.extra.get("isComplete").and_then(Value::as_bool))
+        .unwrap_or(false)
+}
+
+fn status_indicates_completed(status: Option<&str>) -> bool {
+    matches!(
+        status.map(|status| status.to_ascii_uppercase()),
+        Some(status)
+            if matches!(status.as_str(), "COMPLETED" | "COMPLETE" | "DONE" | "FINISHED")
+    )
+}
+
+fn print_task_list_human(
+    includes_all: bool,
+    completion_filter: Option<TaskCompletionFilter>,
+    tasks: &[Task],
+) {
     if tasks.is_empty() {
+        let filter_text = completion_filter.map(|filter| match filter {
+            TaskCompletionFilter::Open => "open",
+            TaskCompletionFilter::Completed => "completed",
+        });
+
         if includes_all {
-            println!("No tasks found.");
+            if let Some(filter_text) = filter_text {
+                println!("No tasks found with completion status '{filter_text}'.");
+            } else {
+                println!("No tasks found.");
+            }
         } else {
-            println!("No active tasks found.");
+            if let Some(filter_text) = filter_text {
+                println!("No active tasks found with completion status '{filter_text}'.");
+            } else {
+                println!("No active tasks found.");
+            }
         }
         return;
     }
@@ -1043,5 +1101,101 @@ mod tests {
 
         let error = build_events_apply_request(&args).unwrap_err();
         assert!(error.to_string().contains("actionsTaken is required"));
+    }
+
+    #[test]
+    fn apply_task_completion_filter_matches_status_field() {
+        let mut tasks = vec![
+            Task {
+                id: 1,
+                title: "Plan roadmap".to_string(),
+                status: Some("OPEN".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: std::collections::HashMap::new(),
+            },
+            Task {
+                id: 2,
+                title: "Archive docs".to_string(),
+                status: Some("COMPLETED".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: std::collections::HashMap::new(),
+            },
+        ];
+
+        apply_task_completion_filter(&mut tasks, Some(TaskCompletionFilter::Completed));
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, 2);
+    }
+
+    #[test]
+    fn apply_task_completion_filter_matches_completion_status_extra_field() {
+        let mut completed_extra = std::collections::HashMap::new();
+        completed_extra.insert("completionStatus".to_string(), json!("COMPLETED"));
+
+        let mut tasks = vec![
+            Task {
+                id: 123,
+                title: "Prepare launch checklist".to_string(),
+                status: Some("OPEN".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: completed_extra,
+            },
+            Task {
+                id: 999,
+                title: "Other item".to_string(),
+                status: Some("OPEN".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: std::collections::HashMap::new(),
+            },
+        ];
+
+        apply_task_completion_filter(&mut tasks, Some(TaskCompletionFilter::Completed));
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, 123);
+    }
+
+    #[test]
+    fn apply_task_completion_filter_matches_boolean_extra_fields() {
+        let mut completed_extra = std::collections::HashMap::new();
+        completed_extra.insert("completed".to_string(), json!(true));
+
+        let mut tasks = vec![
+            Task {
+                id: 123,
+                title: "Plan".to_string(),
+                status: Some("OPEN".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: completed_extra,
+            },
+            Task {
+                id: 456,
+                title: "Build".to_string(),
+                status: Some("OPEN".to_string()),
+                due: None,
+                priority: None,
+                notes: None,
+                deleted: false,
+                extra: std::collections::HashMap::new(),
+            },
+        ];
+
+        apply_task_completion_filter(&mut tasks, Some(TaskCompletionFilter::Completed));
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, 123);
     }
 }
