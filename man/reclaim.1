@@ -47,6 +47,9 @@ Print version
 reclaim\-list(1)
 List tasks (active by default).
 .TP
+reclaim\-dashboard(1)
+Open an interactive task dashboard (TUI).
+.TP
 reclaim\-get(1)
 Get one task by ID.
 .TP
@@ -70,6 +73,8 @@ Print this message or the help of the given subcommand(s)
 .SH EXTRA
 Examples:
   reclaim list
+  reclaim list \-\-filter open
+  reclaim dashboard
   reclaim list \-\-all \-\-format json
   reclaim get 123
   reclaim patch 123 \-\-set priority=P4 \-\-set snoozeUntil=2026\-02\-25T17:00:00Z

@@ -6,6 +6,7 @@ use clap::{
 const AFTER_HELP: &str = "\
 Examples:
   reclaim list
+  reclaim list --filter open
   reclaim dashboard
   reclaim list --all --format json
   reclaim get 123
@@ -119,6 +120,17 @@ pub struct ListArgs {
         help = "Include all tasks, including archived/cancelled/deleted."
     )]
     pub all: bool,
+
+    #[arg(long, value_enum, help = "Optional completion-status filter.")]
+    pub filter: Option<TaskCompletionFilter>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum TaskCompletionFilter {
+    #[value(alias = "incomplete")]
+    Open,
+    #[value(alias = "complete", alias = "done")]
+    Completed,
 }
 
 #[derive(Debug, Args)]
