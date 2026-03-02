@@ -7,8 +7,9 @@ const AFTER_HELP: &str = "\
 Examples:
   reclaim list
   reclaim list --filter open
+  reclaim list --filter IN_PROGRESS
   reclaim dashboard
-  reclaim list --all --format json
+  reclaim list --format json
   reclaim get 123
   reclaim patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
   reclaim put 123 --set priority=P2 --set due=2026-02-28T17:00:00Z
@@ -82,7 +83,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[command(about = "List tasks (active by default).", alias = "ls")]
+    #[command(about = "List tasks.", alias = "ls")]
     List(ListArgs),
     #[command(
         about = "Open an interactive task dashboard (TUI).",
@@ -116,21 +117,35 @@ pub enum Command {
 pub struct ListArgs {
     #[arg(
         long,
-        short = 'a',
-        help = "Include all tasks, including archived/cancelled/deleted."
+        value_enum,
+        help = "Optional task status filter (exact status or bucket)."
     )]
-    pub all: bool,
-
-    #[arg(long, value_enum, help = "Optional completion-status filter.")]
-    pub filter: Option<TaskCompletionFilter>,
+    pub filter: Option<TaskStatusFilter>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum TaskCompletionFilter {
-    #[value(alias = "incomplete")]
+pub enum TaskStatusFilter {
+    #[value(name = "open", alias = "incomplete")]
     Open,
-    #[value(alias = "complete", alias = "done")]
+    #[value(name = "completed", alias = "done")]
     Completed,
+    #[value(name = "NEW", alias = "new")]
+    New,
+    #[value(name = "SCHEDULED", alias = "scheduled")]
+    Scheduled,
+    #[value(
+        name = "IN_PROGRESS",
+        alias = "in_progress",
+        alias = "in-progress",
+        alias = "inprogress"
+    )]
+    InProgress,
+    #[value(name = "COMPLETE", alias = "complete")]
+    Complete,
+    #[value(name = "CANCELLED", alias = "cancelled")]
+    Cancelled,
+    #[value(name = "ARCHIVED", alias = "archived")]
+    Archived,
 }
 
 #[derive(Debug, Args)]

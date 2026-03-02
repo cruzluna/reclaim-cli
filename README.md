@@ -11,7 +11,7 @@ Foundational Rust CLI for interacting with Reclaim.ai.
   - `src/error.rs` for actionable errors with fix hints
 - Foundational commands:
   - `reclaim list`
-  - `reclaim list --filter open|completed`
+  - `reclaim list --filter NEW|SCHEDULED|IN_PROGRESS|COMPLETE|CANCELLED|ARCHIVED|open|completed`
   - `reclaim dashboard` (interactive TUI)
   - `reclaim get <TASK_ID>`
   - `reclaim create --title "..." [options]`
@@ -70,17 +70,18 @@ export RECLAIM_API_KEY=your_api_key_here
 2. Run commands:
 
 ```bash
-cargo run -- list
-cargo run -- list --filter open
-cargo run -- list --filter completed
-cargo run -- dashboard
-cargo run -- get 123
-cargo run -- create --title "Plan sprint"
-cargo run -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
-cargo run -- put 123 --set priority=P2
-cargo run -- delete 123
-cargo run -- events list --start 2026-02-01 --end 2026-02-28
-cargo run -- events create --calendar-id 829105 --title "Team sync" --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
+cargo run --bin reclaim -- list
+cargo run --bin reclaim -- list --filter open
+cargo run --bin reclaim -- list --filter completed
+cargo run --bin reclaim -- list --filter IN_PROGRESS
+cargo run --bin reclaim -- dashboard
+cargo run --bin reclaim -- get 123
+cargo run --bin reclaim -- create --title "Plan sprint"
+cargo run --bin reclaim -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
+cargo run --bin reclaim -- put 123 --set priority=P2
+cargo run --bin reclaim -- delete 123
+cargo run --bin reclaim -- events list --start 2026-02-01 --end 2026-02-28
+cargo run --bin reclaim -- events create --calendar-id 829105 --title "Team sync" --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
 ```
 
 ## Interactive dashboard
@@ -88,7 +89,7 @@ cargo run -- events create --calendar-id 829105 --title "Team sync" --start 2026
 Open a terminal dashboard for your tasks:
 
 ```bash
-cargo run -- dashboard
+cargo run --bin reclaim -- dashboard
 ```
 
 Keyboard shortcuts (Vim-friendly):
@@ -101,23 +102,23 @@ Keyboard shortcuts (Vim-friendly):
 Use `--format json` when output should be machine-readable:
 
 ```bash
-cargo run -- list --format json
+cargo run --bin reclaim -- list --format json
 ```
 
 Use `--json` and `--set key=value` on `put`/`patch` for agent-friendly updates:
 
 ```bash
 # Partial update (PATCH)
-cargo run -- patch 123 \
+cargo run --bin reclaim -- patch 123 \
   --set priority=P4 \
   --set snoozeUntil=2026-02-25T17:00:00Z \
   --format json
 
 # Full replace (PUT) using a JSON object
-cargo run -- put 123 --json '{"title":"Plan sprint","priority":"P2"}' --format json
+cargo run --bin reclaim -- put 123 --json '{"title":"Plan sprint","priority":"P2"}' --format json
 
 # Create an event
-cargo run -- events create \
+cargo run --bin reclaim -- events create \
   --calendar-id 829105 \
   --title "UCA Standup" \
   --start 2026-02-19T18:30:00Z \
@@ -126,7 +127,7 @@ cargo run -- events create \
   --format json
 
 # Update an event using field overrides
-cargo run -- events update \
+cargo run --bin reclaim -- events update \
   --calendar-id 829105 \
   --event-id r2d260ojiopn \
   --set priority=P4 \
@@ -134,7 +135,7 @@ cargo run -- events update \
   --format json
 
 # Advanced event action payload
-cargo run -- events apply \
+cargo run --bin reclaim -- events apply \
   --json '{"actionsTaken":[{"type":"CancelEventAction","policyId":"00000000-0000-0000-0000-000000000000","eventKey":"829105/r2d260ojiopn"}]}' \
   --format json
 ```
