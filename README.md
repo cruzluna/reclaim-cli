@@ -1,168 +1,120 @@
 # reclaim-cli
 
-Foundational Rust CLI for interacting with Reclaim.ai.
-
-## What this includes
-
-- Binary executable named **`reclaim`**
-- Clear CLI/API separation in code:
-  - `src/cli.rs` for command parsing and help text
-  - `src/reclaim_api.rs` for Reclaim API abstraction + HTTP implementation
-  - `src/error.rs` for actionable errors with fix hints
-- Foundational commands:
-  - `reclaim list`
-  - `reclaim list --filter NEW|SCHEDULED|IN_PROGRESS|COMPLETE|CANCELLED|ARCHIVED|open|completed`
-  - `reclaim dashboard` (interactive TUI)
-  - `reclaim get <TASK_ID>`
-  - `reclaim create --title "..." [options]`
-  - `reclaim put <TASK_ID> --json '{...}'` or `--set key=value`
-  - `reclaim patch <TASK_ID> --json '{...}'` and/or `--set key=value`
-  - `reclaim delete <TASK_ID>`
-  - `reclaim events list`
-  - `reclaim events get <CALENDAR_ID> <EVENT_ID>`
-  - `reclaim events create|update|delete ...`
+CLI for interacting with Reclaim.ai. Manage tasks, events, and calendars from your terminal.
 
 ## Installation
 
-### Option 0: Install script
+### Install script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/cruzluna/reclaim-cli/main/install.sh | bash
 ```
 
-Useful overrides:
+Options:
 - `RECLAIM_INSTALL_TAG` (default: `latest`)
 - `RECLAIM_INSTALL_DIR` (default: `$HOME/.local/bin`)
 - `RECLAIM_INSTALL_TARGET` (for manual target selection)
 
-### Option 1: Download a release binary (recommended)
+### Download release binary
 
-1. Go to GitHub Releases and download the archive for your platform:
-   - `reclaim-cli-<target>.tar.gz`
-2. Extract it:
+1. Download the archive for your platform from [GitHub Releases](https://github.com/cruzluna/reclaim-cli/releases)
+2. Extract and install:
 
 ```bash
-tar -xzf reclaim-cli-<target>.tar.gz
+tar -xzf reclaim-cli-*.tar.gz
+install -m 0755 reclaim-cli-*/reclaim /usr/local/bin/reclaim
 ```
 
-3. Move the `reclaim` binary into your `PATH`:
+### Install from source
 
 ```bash
-install -m 0755 reclaim-cli-<target>/reclaim /usr/local/bin/reclaim
-```
-
-### Option 2: Install from source
-
-```bash
-git clone https://github.com/cruzluna/reclaim-cli.git
-cd reclaim-cli
 cargo install --path .
 ```
 
-## Quick start
-
-1. Set API key:
+## Setup
 
 ```bash
 export RECLAIM_API_KEY=your_api_key_here
 ```
 
-2. Run commands:
+## Quick start
 
 ```bash
-cargo run --bin reclaim -- list
-cargo run --bin reclaim -- list --filter open
-cargo run --bin reclaim -- list --filter completed
-cargo run --bin reclaim -- list --filter IN_PROGRESS
-cargo run --bin reclaim -- dashboard
-cargo run --bin reclaim -- get 123
-cargo run --bin reclaim -- create --title "Plan sprint"
-cargo run --bin reclaim -- patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
-cargo run --bin reclaim -- put 123 --set priority=P2
-cargo run --bin reclaim -- delete 123
-cargo run --bin reclaim -- events list --start 2026-02-01 --end 2026-02-28
-cargo run --bin reclaim -- events create --calendar-id 829105 --title "Team sync" --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
+reclaim list
+reclaim list --filter open
+reclaim list --filter completed
+reclaim dashboard
+reclaim get 123
+reclaim create --title "Plan sprint"
+reclaim patch 123 --set priority=P4
+reclaim put 123 --set priority=P2
+reclaim delete 123
+
+# Events
+reclaim events list --start 2026-02-01 --end 2026-02-28
+reclaim events create --calendar-id 829105 --title "Team sync" \
+  --start 2026-02-21T18:30:00Z --end 2026-02-21T19:00:00Z
 ```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `reclaim list` | List tasks (filter: `open`, `completed`, `IN_PROGRESS`, etc.) |
+| `reclaim get <ID>` | Get a task by ID |
+| `reclaim create` | Create a new task |
+| `reclaim patch <ID>` | Partially update a task |
+| `reclaim put <ID>` | Fully replace a task |
+| `reclaim delete <ID>` | Delete a task |
+| `reclaim dashboard` | Interactive TUI |
+| `reclaim events list` | List calendar events |
+| `reclaim events get` | Get an event |
+| `reclaim events create` | Create an event |
+| `reclaim events update` | Update an event |
+| `reclaim events delete` | Delete an event |
 
 ## Interactive dashboard
 
-Open a terminal dashboard for your tasks:
-
 ```bash
-cargo run --bin reclaim -- dashboard
+reclaim dashboard
 ```
 
 Keyboard shortcuts (Vim-friendly):
-- `j` / `k` (or arrow keys): move selection
-- `g` / `G`: jump to first/last task
-- `?`: toggle help panel
-- `r`: refresh tasks from API
-- Quit with `:q`, `Esc`, or `Ctrl+C`
+- `j`/`k` or arrows: move selection
+- `g`/`G`: jump to first/last task
+- `?`: toggle help
+- `r`: refresh
+- `q`, `Esc`, `Ctrl+C`: quit
 
-Use `--format json` when output should be machine-readable:
+## JSON output
+
+Use `--format json` for machine-readable output:
 
 ```bash
-cargo run --bin reclaim -- list --format json
+reclaim list --format json
+reclaim get 123 --format json
 ```
 
-Use `--json` and `--set key=value` on `put`/`patch` for agent-friendly updates:
+## Field updates
+
+Use `--set key=value` for partial updates:
 
 ```bash
-# Partial update (PATCH)
-cargo run --bin reclaim -- patch 123 \
-  --set priority=P4 \
-  --set snoozeUntil=2026-02-25T17:00:00Z \
-  --format json
+reclaim patch 123 --set priority=P4 --set snoozeUntil=2026-02-25T17:00:00Z
+```
 
-# Full replace (PUT) using a JSON object
-cargo run --bin reclaim -- put 123 --json '{"title":"Plan sprint","priority":"P2"}' --format json
+Or `--json` for full objects:
 
-# Create an event
-cargo run --bin reclaim -- events create \
-  --calendar-id 829105 \
-  --title "UCA Standup" \
-  --start 2026-02-19T18:30:00Z \
-  --end 2026-02-19T19:00:00Z \
-  --priority P1 \
-  --format json
-
-# Update an event using field overrides
-cargo run --bin reclaim -- events update \
-  --calendar-id 829105 \
-  --event-id r2d260ojiopn \
-  --set priority=P4 \
-  --set location="Room A" \
-  --format json
-
-# Advanced event action payload
-cargo run --bin reclaim -- events apply \
-  --json '{"actionsTaken":[{"type":"CancelEventAction","policyId":"00000000-0000-0000-0000-000000000000","eventKey":"829105/r2d260ojiopn"}]}' \
-  --format json
+```bash
+reclaim put 123 --json '{"title":"New title","priority":"P2"}'
 ```
 
 ## Man page
 
-Generate `reclaim(1)` from the clap CLI definition:
+Generate the man page:
 
 ```bash
 cargo run --bin reclaim-man
 ```
 
-By default this writes `man/reclaim.1`. To choose a different destination:
-
-```bash
-cargo run --bin reclaim-man -- --output /tmp/reclaim.1
-```
-
-Release archives also include `reclaim.1` next to the binary.
-
-## API notes
-
-This foundation is based on observed usage from:
-https://github.com/johnjhughes/reclaim-mcp-server
-
-In particular:
-- Base URL: `https://api.app.reclaim.ai/api`
-- Task endpoints: `/tasks`, `/tasks/{id}` (`GET`, `PUT`, `PATCH`, `DELETE`)
-- Event endpoints: `/events`, `/events/{calendarId}/{eventId}`
-- Event mutations: `/schedule-actions/apply-actions` (`AddEventAction`, `UpdateEventAction`, `CancelEventAction`)
+This writes to `man/reclaim.1` by default. Release archives include it next to the binary.
